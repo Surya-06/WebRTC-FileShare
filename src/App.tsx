@@ -13,6 +13,11 @@ export default class App extends React.Component<any, any> {
   // p2p channel
   private pc = new RTCPeerConnection();
 
+  addScripts = () => {
+    let scripts: string[] = [];
+    
+  }
+
   constructor(props: any) {
     super(props);
     this.pc.ondatachannel = (e: RTCDataChannelEvent) => {
@@ -21,10 +26,11 @@ export default class App extends React.Component<any, any> {
       this.initializeDataChannel();
     };
     this.pc.oniceconnectionstatechange = this.handleIceStateChange;
+    this.addScripts();
   }
 
   showIncomingMessage = (msg: string): void => {
-    console.log("message received : " , msg);
+    console.log("message received : ", msg);
 
     let msg_display: HTMLTextAreaElement = document.getElementById('latest_message') as HTMLTextAreaElement;
 
@@ -32,7 +38,7 @@ export default class App extends React.Component<any, any> {
   }
 
   handleIceStateChange = (_: Event) => {
-    console.log("ICE state change : " , this.pc.iceConnectionState);
+    console.log("ICE state change : ", this.pc.iceConnectionState);
   }
 
   initializeDataChannel = (): void => {
@@ -76,9 +82,9 @@ export default class App extends React.Component<any, any> {
     console.log("using the received offer from a different client");
     let offer_value: string = (document.getElementById('current_offer') as HTMLTextAreaElement).value;
 
-    console.log("offer value : " , offer_value);
+    console.log("offer value : ", offer_value);
 
-    var description: RTCSessionDescription = new RTCSessionDescription({type: "offer", sdp: offer_value});
+    var description: RTCSessionDescription = new RTCSessionDescription({ type: "offer", sdp: offer_value });
 
     this.pc.setRemoteDescription(description).then(
       () => {
@@ -91,7 +97,7 @@ export default class App extends React.Component<any, any> {
     );
 
     this.pc.onicecandidate = (e: RTCPeerConnectionIceEvent) => {
-      if ( e.candidate ) {
+      if (e.candidate) {
         console.log("returning early when using provided offer");
         return;
       }
@@ -105,8 +111,8 @@ export default class App extends React.Component<any, any> {
   }
 
   acceptKey = () => {
-    if ( this.pc.signalingState !== 'have-local-offer' ) {
-      console.log('returning since signal state is ' , this.pc.signalingState );
+    if (this.pc.signalingState !== 'have-local-offer') {
+      console.log('returning since signal state is ', this.pc.signalingState);
       return;
     }
 
@@ -114,16 +120,16 @@ export default class App extends React.Component<any, any> {
 
     answer_element.disabled = true;
 
-    let description: RTCSessionDescription = new RTCSessionDescription({type: 'answer', sdp: answer_element.value});
+    let description: RTCSessionDescription = new RTCSessionDescription({ type: 'answer', sdp: answer_element.value });
 
-    this.pc.setRemoteDescription(description).catch( (m) => {console.log("failed to set key as remote description : ", m)});
+    this.pc.setRemoteDescription(description).catch((m) => { console.log("failed to set key as remote description : ", m) });
   }
 
   sendMessage = () => {
     let msg_element: HTMLInputElement = document.getElementById('input_message') as HTMLInputElement;
 
     let msg_value: string = msg_element.value;
-    console.log('sending message  : ' , msg_value );
+    console.log('sending message  : ', msg_value);
 
     this.dc.send(msg_value);
 
@@ -133,26 +139,28 @@ export default class App extends React.Component<any, any> {
   render = (): JSX.Element => {
     return (
       <div className="App" style={{ justifyContent: 'center' }}>
-        <div id='contents' style={{ display: 'flex', flexDirection: 'column', width: 'fit-content' }}>
+        <div id='contents' style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
           <h3 id='title'> Local RTC Tester </h3>
-          
-          <div style={{ display: 'flex', flexDirection: 'row', paddingTop: '20px' }}>
-            <label htmlFor='current_offer'>Locally generated offer</label>
-            <textarea id='current_offer' placeholder={'Current offer'} />
+
+          <div style={{ display: 'flex', flexDirection: 'row', paddingTop: '20px', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+            <div style={{display: 'block'}}>
+              <label htmlFor='current_offer'>Key</label>
+              <textarea id='current_offer' placeholder={'Current Key'} />
+            </div>
             <button id='generate_offer' onClick={this.createConnection} >Generate Offer</button>
             <button id='accept_offer' onClick={this.useOffer}>Accept Offer</button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'row', paddingTop: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'row', paddingTop: '20px', width: '100%' }}>
             <label htmlFor='read_offer'>Counter-generated key</label>
-            <textarea id='read_offer' placeholder={'Enter the opposing offer'} onSubmit={this.useOffer}  />
+            <textarea id='read_offer' placeholder={'Enter the opposing offer'} onSubmit={this.useOffer} />
             <button id='accept_key' onClick={this.acceptKey}>Accept Key</button>
           </div>
 
 
           <div>
-            <h1>Chat Section</h1>
-            <textarea id='latest_message' readOnly={true}/>
+            <h3>Chat Section</h3>
+            <textarea id='latest_message' readOnly={true} />
             <input type={'text'} id='input_message' placeholder={'Type your message here'} />
             <button onClick={this.sendMessage}>Send</button>
           </div>
