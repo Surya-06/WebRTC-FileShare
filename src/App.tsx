@@ -13,10 +13,7 @@ export default class App extends React.Component<any, any> {
   // p2p channel
   private pc = new RTCPeerConnection();
 
-  addScripts = () => {
-    let scripts: string[] = [];
-    
-  }
+  addScripts = () => { }
 
   constructor(props: any) {
     super(props);
@@ -42,7 +39,6 @@ export default class App extends React.Component<any, any> {
   }
 
   initializeDataChannel = (): void => {
-    // this.dc = this.dc as RTCDataChannel;
     console.log("initializing data channel");
     this.dc.onopen = () => console.log("data channel opened!");
     this.dc.onmessage = (e: MessageEvent<any>) =>
@@ -60,7 +56,6 @@ export default class App extends React.Component<any, any> {
 
     this.pc.onicecandidate = (e: RTCPeerConnectionIceEvent) => {
       if (e.candidate) {
-        console.log("on candidate event, early returning for whatever reason");
         return;
       }
 
@@ -68,7 +63,7 @@ export default class App extends React.Component<any, any> {
 
       console.log("value of the key : ", local_sdp);
 
-      let local_offer_element = document.getElementById('current_offer') as HTMLTextAreaElement;
+      let local_offer_element = document.getElementById('key') as HTMLTextAreaElement;
 
       local_offer_element.value = local_sdp;
 
@@ -80,7 +75,7 @@ export default class App extends React.Component<any, any> {
 
   useOffer = () => {
     console.log("using the received offer from a different client");
-    let offer_value: string = (document.getElementById('current_offer') as HTMLTextAreaElement).value;
+    let offer_value: string = (document.getElementById('key') as HTMLTextAreaElement).value;
 
     console.log("offer value : ", offer_value);
 
@@ -98,25 +93,24 @@ export default class App extends React.Component<any, any> {
 
     this.pc.onicecandidate = (e: RTCPeerConnectionIceEvent) => {
       if (e.candidate) {
-        console.log("returning early when using provided offer");
         return;
       }
-      let answer_element = document.getElementById("read_offer") as HTMLTextAreaElement;
+      let answer_element = document.getElementById("answer") as HTMLTextAreaElement;
 
       answer_element.value = this.pc.localDescription ? this.pc.localDescription.sdp : "Key Generation Failed!";
 
-      (document.getElementById('accept_key') as HTMLButtonElement).disabled = true;
+      (document.getElementById('accept_answer') as HTMLButtonElement).disabled = true;
     }
 
   }
 
-  acceptKey = () => {
+  acceptAnswer = () => {
     if (this.pc.signalingState !== 'have-local-offer') {
       console.log('returning since signal state is ', this.pc.signalingState);
       return;
     }
 
-    let answer_element = document.getElementById('read_offer') as HTMLTextAreaElement;
+    let answer_element = document.getElementById('answer') as HTMLTextAreaElement;
 
     answer_element.disabled = true;
 
@@ -143,18 +137,20 @@ export default class App extends React.Component<any, any> {
           <h3 id='title'> Local RTC Tester </h3>
 
           <div style={{ display: 'flex', flexDirection: 'row', paddingTop: '20px', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
-            <div style={{display: 'block'}}>
-              <label htmlFor='current_offer'>Key</label>
-              <textarea id='current_offer' placeholder={'Current Key'} />
+            <div style={{ display: 'block' }}>
+              <label htmlFor='key'>Key</label>
+              <textarea id='key' placeholder={'Current Key'} />
             </div>
             <button id='generate_offer' onClick={this.createConnection} >Generate Offer</button>
             <button id='accept_offer' onClick={this.useOffer}>Accept Offer</button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'row', paddingTop: '20px', width: '100%' }}>
-            <label htmlFor='read_offer'>Counter-generated key</label>
-            <textarea id='read_offer' placeholder={'Enter the opposing offer'} onSubmit={this.useOffer} />
-            <button id='accept_key' onClick={this.acceptKey}>Accept Key</button>
+            <label htmlFor='answer'>Counter-generated answer</label>
+            <textarea id='answer' placeholder={'Enter the opposing answer'} onSubmit={this.useOffer} />
+            <button id='accept_answer' onClick={this.acceptAnswer}>
+              Accept Answer
+            </button>
           </div>
 
 
@@ -164,6 +160,9 @@ export default class App extends React.Component<any, any> {
             <input type={'text'} id='input_message' placeholder={'Type your message here'} />
             <button onClick={this.sendMessage}>Send</button>
           </div>
+
+          
+
 
         </div>
       </div>
