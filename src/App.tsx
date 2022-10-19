@@ -5,13 +5,16 @@ import './App.css';
 https://jsfiddle.net/jib1/nnc13tw2/
 */
 
-export default class App extends React.Component<any, any> {
 
+const kMessageStart: string = 'BEGIN_FILE';
+const kMessageEnd: string = 'END_FILE';
+
+export default class App extends React.Component<any, any> {
   // data channel
   private dc: any = new RTCPeerConnection();
 
   // p2p channel
-  private pc = new RTCPeerConnection();
+  private pc: RTCPeerConnection = new RTCPeerConnection();
 
   addScripts = () => { }
 
@@ -41,8 +44,24 @@ export default class App extends React.Component<any, any> {
   initializeDataChannel = (): void => {
     console.log("initializing data channel");
     this.dc.onopen = () => console.log("data channel opened!");
-    this.dc.onmessage = (e: MessageEvent<any>) =>
-      this.showIncomingMessage(e.data);
+    this.dc.onmessage = (e: MessageEvent<any>) => {
+      console.log("type of data : ", typeof e.data);
+      if (typeof (e.data) === 'string') {
+        this.showIncomingMessage(e.data);
+      } else {
+        this.receiveFile(e.data);
+      }
+    }
+  }
+
+  receiveFile = (buf: ArrayBuffer) => {
+    let obj_url = URL.createObjectURL(new Blob([buf], { type: 'text/plain' }));
+    console.log('created object url : ', obj_url);
+
+    const a = document.createElement('a');
+    a.href = obj_url;
+    a.download = 'random.cpp';
+    a.click();
   }
 
   createConnection = (_: any): void => {
@@ -119,7 +138,7 @@ export default class App extends React.Component<any, any> {
     this.pc.setRemoteDescription(description).catch((m) => { console.log("failed to set key as remote description : ", m) });
   }
 
-  sendMessage = () => {
+  sendTextMessage = () => {
     let msg_element: HTMLInputElement = document.getElementById('input_message') as HTMLInputElement;
 
     let msg_value: string = msg_element.value;
@@ -128,6 +147,49 @@ export default class App extends React.Component<any, any> {
     this.dc.send(msg_value);
 
     msg_element.value = '';
+  }
+
+  sendFile = (file: File) => {
+    // send name of the file as string
+    let filename: string = file.name;
+    let size: number = file.size;
+    let type: string = file.type;
+
+    this.dc.send(kMessageStart);
+    this.dc.send(filename);
+    this.dc.size(size);
+    this.dc.type(type);
+
+    file.arrayBuffer().then(
+      (buf: ArrayBuffer) => {
+        this.dc = this.dc as RTCDataChannel;
+        this.dc.send(buf);
+        this.dc.send(kMessageEnd);
+      }
+    );
+  }
+
+  handleException = (e: any) => {
+    console.log('exception occured, details : ', e);
+  }
+
+  handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) {
+      console.log('No files found in the current change event!');
+      return;
+    }
+
+    let files = e.target.files;
+    let file_count = files.length;
+    console.log('length of files : ', file_count);
+
+    if (file_count !== 1) {
+      alert("More than one file incoming. Please try again!");
+      console.log(files);
+      return;
+    }
+
+    this.sendFile(files[0]);
   }
 
   render = (): JSX.Element => {
@@ -154,14 +216,20 @@ export default class App extends React.Component<any, any> {
           </div>
 
 
-          <div>
+          <div id='chat_section'>
             <h3>Chat Section</h3>
             <textarea id='latest_message' readOnly={true} />
             <input type={'text'} id='input_message' placeholder={'Type your message here'} />
-            <button onClick={this.sendMessage}>Send</button>
+            <button onClick={this.sendTextMessage}>Send</button>
           </div>
 
-          
+          <div id='file_section'>
+            <p>File sending section</p>
+            <input type={'file'} id={'file_selector'} onChange={this.handleFileSelection} />
+
+            <textarea id='sample_display' disabled={true} />
+
+          </div>
 
 
         </div>
