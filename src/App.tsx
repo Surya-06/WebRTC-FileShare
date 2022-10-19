@@ -7,6 +7,8 @@ https://jsfiddle.net/jib1/nnc13tw2/
 */
 
 
+const CHUNK_SIZE: number = 16300;
+
 const kMessageStart: string = 'BEGIN_FILE';
 const kMessageEnd: string = 'END_FILE';
 
@@ -65,14 +67,14 @@ export default class App extends React.Component<any, any> {
 
   handleIncomingMessage = (e: MessageEvent<any>) => {
     let msg: any = e.data;
-    console.log('messge received, type : ', typeof(msg))
-    if ( typeof(msg) === 'string' ) {
+    console.log('messge received, type : ', typeof (msg))
+    if (typeof (msg) === 'string') {
       let is_meta_msg: boolean = this.handleIfFileMetaMessages(msg);
-      if ( !is_meta_msg )
+      if (!is_meta_msg)
         this.showIncomingMessage(msg);
     } else {
-      if ( this.status !== FILE_TRANSFER_STATE.DataPending ) {
-        console.log ( 'WARNING : non-string object received with wrong state, current state : ', this.status);
+      if (this.status !== FILE_TRANSFER_STATE.DataPending) {
+        console.log('WARNING : non-string object received with wrong state, current state : ', this.status);
       }
       this.receiveFile(msg);
     }
@@ -82,21 +84,21 @@ export default class App extends React.Component<any, any> {
     // start -> name -> type -> size -> message -> end
 
     let is_meta: boolean = true;
-    if ( msg === kMessageStart ) {
+    if (msg === kMessageStart) {
       console.log('File transfer started, begin message received');
       this.status = FILE_TRANSFER_STATE.NamePending;
-    } else if ( msg === kMessageEnd ) {
+    } else if (msg === kMessageEnd) {
       console.log('File transfer done, end message received');
       this.status = FILE_TRANSFER_STATE.Complete;
-    } else if ( this.status ===  FILE_TRANSFER_STATE.NamePending ) {
+    } else if (this.status === FILE_TRANSFER_STATE.NamePending) {
       this.filename = msg;
       this.status = FILE_TRANSFER_STATE.TypePending;
       console.log('received file name : ', this.filename);
-    } else if ( this.status === FILE_TRANSFER_STATE.TypePending ) {
+    } else if (this.status === FILE_TRANSFER_STATE.TypePending) {
       this.filetype = msg;
       this.status = FILE_TRANSFER_STATE.SizePending;
       console.log('received file type : ', this.filetype);
-    } else if ( this.status === FILE_TRANSFER_STATE.SizePending ) {
+    } else if (this.status === FILE_TRANSFER_STATE.SizePending) {
       this.filesize = Number(msg);
       this.status = FILE_TRANSFER_STATE.DataPending;
       console.log('received file size : ', this.filesize);
@@ -107,12 +109,19 @@ export default class App extends React.Component<any, any> {
     return is_meta;
   }
 
+  private current_buffer: ArrayBuffer[] = [];
+  private current_size: number = 0;
+
   receiveFile = (buf: ArrayBuffer) => {
-    if ( buf.byteLength !== this.filesize ) {
-      console.log('WARNING : size of file does not match with expectation. \n Current size : ' + buf.byteLength + '\n Expected size : ' + this.filesize );
+    this.current_buffer.push(buf);
+    this.current_size += buf.byteLength;
+
+    if (this.current_size !== this.filesize) {
+      console.log('file size still less than the expected size, returning in wait of next buffer')
+      return;
     }
 
-    let obj_url = URL.createObjectURL(new Blob([buf], { type: this.filetype }));
+    let obj_url = URL.createObjectURL(new Blob(this.current_buffer, { type: this.filetype }));
     console.log('created object url : ', obj_url);
     const a = document.createElement('a');
     a.href = obj_url;
@@ -222,9 +231,22 @@ export default class App extends React.Component<any, any> {
 
     file.arrayBuffer().then(
       (buf: ArrayBuffer) => {
-        this.dc = this.dc as RTCDataChannel;
-        this.dc.send(buf);
         console.log('buffer size : ', buf.byteLength);
+
+        // break messagse to fit packet size.
+        let index: number = 0;
+        let csize: number = Number(size);
+        let fragment_count: number = 0;
+        while (csize >= CHUNK_SIZE) {
+          this.dc.send(buf.slice(index, index + CHUNK_SIZE));
+          csize -= CHUNK_SIZE;
+          index += CHUNK_SIZE;
+          fragment_count++;
+          console.log('sent message fragment - ', fragment_count);
+        }
+
+        if (csize > 0)
+          this.dc.send(buf.slice(index, csize));
         this.dc.send(kMessageEnd);
       }
     );
