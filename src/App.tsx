@@ -1,4 +1,5 @@
 import React from 'react';
+import { EnumDeclaration } from 'typescript';
 import './App.css';
 
 /*
@@ -9,12 +10,27 @@ https://jsfiddle.net/jib1/nnc13tw2/
 const kMessageStart: string = 'BEGIN_FILE';
 const kMessageEnd: string = 'END_FILE';
 
+enum FILE_TRANSFER_STATE {
+  None,
+  NamePending,
+  TypePending,
+  SizePending,
+  DataPending,
+  EndMessagePending,
+  Complete
+};
+
 export default class App extends React.Component<any, any> {
   // data channel
   private dc: any = new RTCPeerConnection();
 
   // p2p channel
   private pc: RTCPeerConnection = new RTCPeerConnection();
+
+  private status: FILE_TRANSFER_STATE = FILE_TRANSFER_STATE.None;
+  private filename: string = '';
+  private filetype: string = '';
+  private filesize: number = 0;
 
   addScripts = () => { }
 
@@ -44,24 +60,66 @@ export default class App extends React.Component<any, any> {
   initializeDataChannel = (): void => {
     console.log("initializing data channel");
     this.dc.onopen = () => console.log("data channel opened!");
-    this.dc.onmessage = (e: MessageEvent<any>) => {
-      console.log("type of data : ", typeof e.data);
-      if (typeof (e.data) === 'string') {
-        this.showIncomingMessage(e.data);
-      } else {
-        this.receiveFile(e.data);
+    this.dc.onmessage = this.handleIncomingMessage;
+  }
+
+  handleIncomingMessage = (e: MessageEvent<any>) => {
+    let msg: any = e.data;
+    console.log('messge received, type : ', typeof(msg))
+    if ( typeof(msg) === 'string' ) {
+      let is_meta_msg: boolean = this.handleIfFileMetaMessages(msg);
+      if ( !is_meta_msg )
+        this.showIncomingMessage(msg);
+    } else {
+      if ( this.status !== FILE_TRANSFER_STATE.DataPending ) {
+        console.log ( 'WARNING : non-string object received with wrong state, current state : ', this.status);
       }
+      this.receiveFile(msg);
     }
   }
 
-  receiveFile = (buf: ArrayBuffer) => {
-    let obj_url = URL.createObjectURL(new Blob([buf], { type: 'text/plain' }));
-    console.log('created object url : ', obj_url);
+  handleIfFileMetaMessages = (msg: string): boolean => {
+    // start -> name -> type -> size -> message -> end
 
+    let is_meta: boolean = true;
+    if ( msg === kMessageStart ) {
+      console.log('File transfer started, begin message received');
+      this.status = FILE_TRANSFER_STATE.NamePending;
+    } else if ( msg === kMessageEnd ) {
+      console.log('File transfer done, end message received');
+      this.status = FILE_TRANSFER_STATE.Complete;
+    } else if ( this.status ===  FILE_TRANSFER_STATE.NamePending ) {
+      this.filename = msg;
+      this.status = FILE_TRANSFER_STATE.TypePending;
+      console.log('received file name : ', this.filename);
+    } else if ( this.status === FILE_TRANSFER_STATE.TypePending ) {
+      this.filetype = msg;
+      this.status = FILE_TRANSFER_STATE.SizePending;
+      console.log('received file type : ', this.filetype);
+    } else if ( this.status === FILE_TRANSFER_STATE.SizePending ) {
+      this.filesize = Number(msg);
+      this.status = FILE_TRANSFER_STATE.DataPending;
+      console.log('received file size : ', this.filesize);
+    } else {
+      is_meta = false;
+    }
+
+    return is_meta;
+  }
+
+  receiveFile = (buf: ArrayBuffer) => {
+    if ( buf.byteLength !== this.filesize ) {
+      console.log('WARNING : size of file does not match with expectation. \n Current size : ' + buf.byteLength + '\n Expected size : ' + this.filesize );
+    }
+
+    let obj_url = URL.createObjectURL(new Blob([buf], { type: this.filetype }));
+    console.log('created object url : ', obj_url);
     const a = document.createElement('a');
     a.href = obj_url;
-    a.download = 'random.cpp';
+    a.download = this.filename;
     a.click();
+    console.log('File buffer received, download initialized.');
+    this.status = FILE_TRANSFER_STATE.EndMessagePending;
   }
 
   createConnection = (_: any): void => {
@@ -152,18 +210,21 @@ export default class App extends React.Component<any, any> {
   sendFile = (file: File) => {
     // send name of the file as string
     let filename: string = file.name;
-    let size: number = file.size;
+    let size: string = file.size.toString();
     let type: string = file.type;
 
     this.dc.send(kMessageStart);
     this.dc.send(filename);
-    this.dc.size(size);
-    this.dc.type(type);
+    this.dc.send(type);
+    this.dc.send(size);
+
+    console.log('file details: ', filename, ' ', type, ' ', size);
 
     file.arrayBuffer().then(
       (buf: ArrayBuffer) => {
         this.dc = this.dc as RTCDataChannel;
         this.dc.send(buf);
+        console.log('buffer size : ', buf.byteLength);
         this.dc.send(kMessageEnd);
       }
     );
@@ -181,7 +242,7 @@ export default class App extends React.Component<any, any> {
 
     let files = e.target.files;
     let file_count = files.length;
-    console.log('length of files : ', file_count);
+    console.log('length of files :', file_count.toString());
 
     if (file_count !== 1) {
       alert("More than one file incoming. Please try again!");
