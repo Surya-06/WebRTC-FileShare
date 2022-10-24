@@ -8,14 +8,19 @@ const downloadBuffer = (
     filetype: string,
     filename: string
 ): void => {
-    let obj_url = URL.createObjectURL(new Blob(buffers, { type: filetype }));
+    let obj_url: string = URL.createObjectURL(
+        new Blob(buffers, { type: filetype })
+    );
     console.log("created object url : ", obj_url);
     const a = document.createElement("a");
     a.href = obj_url;
     a.download = filename;
     a.click();
     console.log("File buffer received, download initialized.");
-    // TODO: Revoke object URL after download is complete.
+    setTimeout((obj_url, filename) => {
+        console.log("Revoking object URL for file : ", filename);
+        URL.revokeObjectURL(obj_url);
+    }, Constants.kRevokeTime);
 };
 
 export default class FileReceiver {
@@ -26,10 +31,15 @@ export default class FileReceiver {
     private filesize: number = 0;
     private received_buffer: ArrayBuffer[] = [];
     private received_length: number = 0;
+    private progress_update_callback: Constants.ProgressUpdateCallback;
 
-    constructor(dc: RTCDataChannel) {
+    constructor(
+        dc: RTCDataChannel,
+        progress_callback: Constants.ProgressUpdateCallback
+    ) {
         this.dc = dc;
         this.status = FILE_TRANSFER_STATE.NamePending;
+        this.progress_update_callback = progress_callback;
     }
 
     resetFileInfo = (): void => {
@@ -59,6 +69,7 @@ export default class FileReceiver {
             }
             console.log("File transfer started, begin message received");
             this.status = FILE_TRANSFER_STATE.NamePending;
+            this.progress_update_callback(0);
         } else if (msg === Constants.kMessageEnd) {
             if (this.status != FILE_TRANSFER_STATE.EndMessagePending) {
                 console.log("WARNING: status variable indicates error.");
@@ -67,6 +78,7 @@ export default class FileReceiver {
             }
             console.log("File transfer done, end message received");
             this.status = FILE_TRANSFER_STATE.Complete;
+            this.progress_update_callback(1);
             this.resetFileInfo();
         } else if (this.status === FILE_TRANSFER_STATE.NamePending) {
             this.filename = msg;
@@ -105,7 +117,10 @@ export default class FileReceiver {
             );
             console.log("Received buffer size : ", this.received_length);
             console.log("Expected buffer size : ", this.filesize);
+            this.resetFileInfo();
+            return;
         }
+        this.progress_update_callback(this.received_length / this.filesize);
         return;
     };
 }

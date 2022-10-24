@@ -23,6 +23,9 @@ export default class App extends React.Component<any, any> {
 
     constructor(props: any) {
         super(props);
+        this.state = {
+            progress_value: 0,
+        };
         this.pc.ondatachannel = (e: RTCDataChannelEvent) => {
             console.log("on data channel event occured");
             this.dc = e.channel;
@@ -32,13 +35,21 @@ export default class App extends React.Component<any, any> {
         this.addScripts();
     }
 
+    updateProgress = (updated_progress_value: number): void => {
+        console.log('updating progress to : ' , updated_progress_value);
+        this.setState({
+            ...this.state,
+            progress_value: updated_progress_value,
+        });
+    };
+
     handleIceStateChange = (_: Event) => {
         console.log("ICE state change : ", this.pc.iceConnectionState);
     };
 
     initializeDataChannel = (): void => {
         console.log("initializing data channel");
-        this.receiver = new FileReceiver(this.dc);
+        this.receiver = new FileReceiver(this.dc, this.updateProgress);
         this.dc.onopen = () => console.log("data channel opened!");
         this.dc.onmessage = this.receiver.handleIncomingMessage;
     };
@@ -143,7 +154,11 @@ export default class App extends React.Component<any, any> {
 
     sendFile = (file: File) => {
         console.log("sending new file");
-        let file_sender: FileSender = new FileSender(this.dc, file);
+        let file_sender: FileSender = new FileSender(
+            this.dc,
+            file,
+            this.updateProgress
+        );
         file_sender.send();
     };
 
@@ -210,7 +225,7 @@ export default class App extends React.Component<any, any> {
                             Accept Answer
                         </button>
                     </div>
-                    <div id="file_section">
+                    <div id="file_section" className={"key-section"}>
                         <p>File sending section</p>
                         <input
                             type={"file"}
@@ -219,6 +234,12 @@ export default class App extends React.Component<any, any> {
                         />
 
                         <textarea id="sample_display" disabled={true} />
+
+                        <progress
+                            id="file-download-progress"
+                            value={this.state.progress_value}
+                            max="1"
+                        />
                     </div>
                 </div>
             </div>

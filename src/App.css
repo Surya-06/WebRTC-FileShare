@@ -41,7 +41,7 @@
 
 .key-section {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     padding-top: 20px;
     align-items: center;
     width: 100%;

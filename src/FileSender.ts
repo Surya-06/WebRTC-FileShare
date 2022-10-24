@@ -13,13 +13,19 @@ export default class FileSender {
     private fragment_count: number = 0;
     private is_buffer_available: boolean = true;
     private buffer!: ArrayBuffer;
+    private progress_update_callback: Constants.ProgressUpdateCallback;
 
-    constructor(dc: RTCDataChannel, file: File) {
+    constructor(
+        dc: RTCDataChannel,
+        file: File,
+        progress_update_callback: Constants.ProgressUpdateCallback
+    ) {
         this.dc = dc;
         this.file = file;
         this.filename = file.name;
         this.filetype = file.type;
         this.filesize = file.size;
+        this.progress_update_callback = progress_update_callback;
     }
 
     send = (): void => {
@@ -40,6 +46,8 @@ export default class FileSender {
 
         console.log("Beginning file read into buffer");
         this.file.arrayBuffer().then(this.processFileBuffer);
+
+        this.progress_update_callback(0);
     };
 
     handleBufferAvailableEvent = (): void => {
@@ -83,6 +91,8 @@ export default class FileSender {
                 console.log("Bytes remaining : ", this.remaining_length);
                 console.log("Index : ", this.index);
 
+                this.sendProgressUpdate();
+
                 // Recursively process the next slice.
                 return this.processBufferSlice();
             } else {
@@ -93,13 +103,20 @@ export default class FileSender {
                 this.fragment_count++;
 
                 this.fileBuffersSent();
+                this.sendProgressUpdate();
                 return;
             }
         } catch (e: any) {
             console.log("Exception occurred during send, details: ", e);
             this.is_buffer_available = false;
         }
+
     };
+
+    sendProgressUpdate = (): void => {
+        console.log('sending progress update back to parent');
+        this.progress_update_callback((this.filesize - this.remaining_length)/ this.filesize);
+    }
 
     fileBuffersSent = (): void => {
         this.dc.send(Constants.kMessageEnd);
