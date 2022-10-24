@@ -123,6 +123,7 @@ export default class App extends React.Component<any, any> {
       console.log(
         "file size still less than the expected size, returning in wait of next buffer"
       );
+      console.log("current buffer length : " , this.current_size, "\nexpected buffer length : " , this.filesize);
       return;
     }
 
@@ -271,10 +272,19 @@ export default class App extends React.Component<any, any> {
         index += CHUNK_SIZE;
         fragment_count++;
         console.log("sent message fragment - ", fragment_count);
+        console.log("size remaining : " , csize);
       }
 
-      if (csize > 0) this.dc.send(buf.slice(index, csize));
+      console.log('csize after all buffers : ', csize);
+      console.log('size sent so far : ', buf.byteLength - csize);
+
+      if (csize > 0) {
+        this.dc.send(buf.slice(index, index + csize));
+        console.log('size of last buffer : ' , csize);
+      }
+
       this.dc.send(kMessageEnd);
+
     });
   };
 
