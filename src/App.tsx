@@ -2,16 +2,11 @@ import React from "react";
 import { EnumDeclaration } from "typescript";
 import "./App.css";
 import FileSender from './FileSender';
+import * as Constants from './Constants';
 
 /*
 https://jsfiddle.net/jib1/nnc13tw2/
 */
-
-const CHUNK_SIZE: number = 16300;
-
-const kMessageStart: string = "BEGIN_FILE";
-const kMessageEnd: string = "END_FILE";
-
 enum FILE_TRANSFER_STATE {
     None,
     NamePending,
@@ -88,10 +83,10 @@ export default class App extends React.Component<any, any> {
         // start -> name -> type -> size -> message -> end
 
         let is_meta: boolean = true;
-        if (msg === kMessageStart) {
+        if (msg === Constants.kMessageStart) {
             console.log("File transfer started, begin message received");
             this.status = FILE_TRANSFER_STATE.NamePending;
-        } else if (msg === kMessageEnd) {
+        } else if (msg === Constants.kMessageEnd) {
             console.log("File transfer done, end message received");
             this.status = FILE_TRANSFER_STATE.Complete;
         } else if (this.status === FILE_TRANSFER_STATE.NamePending) {
@@ -257,59 +252,9 @@ export default class App extends React.Component<any, any> {
     };
 
     sendFile = (file: File) => {
-        // send name of the file as string
-        let filename: string = file.name;
-        let size: string = file.size.toString();
-        let type: string = file.type;
-
-        this.dc.send(kMessageStart);
-        this.dc.send(filename);
-        this.dc.send(type);
-        this.dc.send(size);
-
-        let test = new FileSender();
-        test.send(this.dc, 'hello from file sender');
-
-        console.log("file details: ", filename, " ", type, " ", size);
-
-        console.log("chaning data channel type to binary");
-        (this.dc as RTCDataChannel).binaryType = "arraybuffer";
-
-        file.arrayBuffer().then((buf: ArrayBuffer) => {
-            console.log("buffer size : ", buf.byteLength);
-
-            // break messagse to fit packet size.
-            let index: number = 0;
-            let csize: number = Number(size);
-            let fragment_count: number = 0;
-            while (csize >= CHUNK_SIZE) {
-                try {
-                    this.dc.send(buf.slice(index, index + CHUNK_SIZE));
-                    csize -= CHUNK_SIZE;
-                    index += CHUNK_SIZE;
-                    fragment_count++;
-                    console.log("sent message fragment - ", fragment_count);
-                    console.log("size remaining : ", csize);
-                } catch (e) {
-                    this.handleException(e);
-                    console.log('waiting for the buffer to free up');
-                    (this.dc as RTCDataChannel).addEventListener('buffferedamountlow', e => {
-
-                    });
-                    break;
-                }
-            }
-
-            console.log("csize after all buffers : ", csize);
-            console.log("size sent so far : ", buf.byteLength - csize);
-
-            if (csize > 0) {
-                this.dc.send(buf.slice(index, index + csize));
-                console.log("size of last buffer : ", csize);
-            }
-
-            this.dc.send(kMessageEnd);
-        });
+        console.log('sending new file');
+        let file_sender: FileSender = new FileSender(this.dc, file);
+        file_sender.send();
     };
 
     handleException = (e: any) => {
