@@ -1,6 +1,7 @@
 import React from "react";
 import { EnumDeclaration } from "typescript";
 import "./App.css";
+import FileSender from './FileSender';
 
 /*
 https://jsfiddle.net/jib1/nnc13tw2/
@@ -266,7 +267,13 @@ export default class App extends React.Component<any, any> {
         this.dc.send(type);
         this.dc.send(size);
 
+        let test = new FileSender();
+        test.send(this.dc, 'hello from file sender');
+
         console.log("file details: ", filename, " ", type, " ", size);
+
+        console.log("chaning data channel type to binary");
+        (this.dc as RTCDataChannel).binaryType = "arraybuffer";
 
         file.arrayBuffer().then((buf: ArrayBuffer) => {
             console.log("buffer size : ", buf.byteLength);
@@ -276,12 +283,21 @@ export default class App extends React.Component<any, any> {
             let csize: number = Number(size);
             let fragment_count: number = 0;
             while (csize >= CHUNK_SIZE) {
-                this.dc.send(buf.slice(index, index + CHUNK_SIZE));
-                csize -= CHUNK_SIZE;
-                index += CHUNK_SIZE;
-                fragment_count++;
-                console.log("sent message fragment - ", fragment_count);
-                console.log("size remaining : ", csize);
+                try {
+                    this.dc.send(buf.slice(index, index + CHUNK_SIZE));
+                    csize -= CHUNK_SIZE;
+                    index += CHUNK_SIZE;
+                    fragment_count++;
+                    console.log("sent message fragment - ", fragment_count);
+                    console.log("size remaining : ", csize);
+                } catch (e) {
+                    this.handleException(e);
+                    console.log('waiting for the buffer to free up');
+                    (this.dc as RTCDataChannel).addEventListener('buffferedamountlow', e => {
+
+                    });
+                    break;
+                }
             }
 
             console.log("csize after all buffers : ", csize);
@@ -333,7 +349,7 @@ export default class App extends React.Component<any, any> {
                     <h3 id="title"> Local RTC Tester </h3>
 
                     <div className={"key-section"}>
-                        <div style={{ display: "block" }}>
+                        <div>
                             <label htmlFor="key">Key</label>
                             <textarea id="key" placeholder={"Current Key"} />
                         </div>

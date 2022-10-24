@@ -40,11 +40,10 @@
 }
 
 .key-section {
-    display: "flex";
-    flexdirection: "row";
-    paddingtop: "20px";
-    alignitems: "center";
-    width: "100%";
-    justifycontent: "center";
+    display: flex;
+    flex-direction: row;
+    padding-top: 20px;
+    align-items: center;
+    width: 100%;
+    justify-content: center;
 }
-
