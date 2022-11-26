@@ -187,7 +187,7 @@ export default class App extends React.Component<any, any> {
 
     render = (): JSX.Element => {
         return (
-            <div className="App" style={{ justifyContent: "center" }}>
+            <div className="App" style={{ justifyContent: "center", marginLeft: "20px" }}>
                 <div
                     id="contents"
                     style={{
