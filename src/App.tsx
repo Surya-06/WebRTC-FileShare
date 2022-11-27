@@ -196,7 +196,7 @@ export default class App extends React.Component<any, any> {
                         width: "100%",
                     }}
                 >
-                    <h3 id="title"> Local RTC Tester </h3>
+                    <h3 id="title"> Peer-to-Peer File Share </h3>
 
                     <div className={"key-section"}>
                         <div>
