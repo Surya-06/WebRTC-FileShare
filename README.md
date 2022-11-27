@@ -7,7 +7,8 @@ which can communicate with each other (i.e., the devices are network reachable).
 ## Tech Stack:
 - create-react-app: Bootstrap code to setup the UI
 - React: To setup the UI structure and elements
-- JS APIs: WebRTC API provided by in-browser JS engine (tested on Safari).
+- JS APIs: WebRTC API provided by in-browser JS engine (tested on Safari)
+- GitHub actions for Continuous Build & Deployment
 
 
 ## Working model:
